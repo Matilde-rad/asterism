@@ -68,12 +68,12 @@ function render() {
     for (const o of visibleObjects()) {
       if (o.x == null) continue;
       const r = Math.max(o.radius || 0, 10 * s);
-      ctx.strokeStyle = "#f7b6cf"; ctx.lineWidth = 2 * s;
+      ctx.strokeStyle = "#c9cff2"; ctx.lineWidth = 2 * s;
       ctx.beginPath(); ctx.arc(o.x, o.y, r, 0, Math.PI * 2); ctx.stroke();
       const label = o.names[0] || "?";
-      ctx.lineWidth = 4 * s; ctx.strokeStyle = "#2b2350";
+      ctx.lineWidth = 4 * s; ctx.strokeStyle = "#04060f";
       ctx.strokeText(label, o.x + r + 4 * s, o.y + 6 * s);
-      ctx.fillStyle = "#fde4ee";
+      ctx.fillStyle = "#ffffff";
       ctx.fillText(label, o.x + r + 4 * s, o.y + 6 * s);
     }
   };
