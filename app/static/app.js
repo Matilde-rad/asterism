@@ -1,6 +1,6 @@
 const $ = (id) => document.getElementById(id);
 const esc = (t) => String(t).replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]);
-const CATALOG_ONLY = new Set(["hd", "tycho2", "tycho"]);
+const CATALOG_ONLY = new Set(["hd", "tycho2", "tycho", "hip"]);
 let photoImg = null;
 let result = null;
 
@@ -34,7 +34,7 @@ $("go").addEventListener("click", async () => {
 });
 
 const LABELS = {
-  received: "Received…", uploading: "Sending to the star matcher…",
+  received: "Received…", matching: "Matching star patterns with ESA's tetra3 ✦", uploading: "Sending to the star matcher…",
   queued: "Waiting in the solver queue…", solving: "Matching star patterns ✦ (can take a minute)",
 };
 
@@ -82,14 +82,15 @@ function render() {
   const facts = [];
   const c = result.center;
   if (c.ra_deg != null) facts.push(["Centre (RA / Dec)", `${c.ra_deg.toFixed(2)}° / ${c.dec_deg.toFixed(2)}°`]);
-  if (result.field_radius_deg != null) facts.push(["Field of view", `≈ ${(result.field_radius_deg * 2).toFixed(1)}° across`]);
+  if (result.field_width_deg != null) facts.push(["Field of view", `≈ ${result.field_width_deg.toFixed(1)}° across`]);
   if (result.orientation_deg != null) facts.push(["Camera tilt", `${result.orientation_deg.toFixed(1)}°`]);
   if (result.facing) facts.push(["You were facing", `${result.facing.compass}, ${result.facing.altitude_deg}° up`]);
+  if (result.solver) facts.push(["Solved by", result.solver]);
   if (result.taken_at) facts.push(["Taken (UTC)", new Date(result.taken_at).toUTCString()]);
   $("facts").innerHTML = facts.map(([k, v]) => `<div class="fact"><b>${k}</b>${esc(v)}</div>`).join("");
 
   $("objects").innerHTML = visibleObjects()
-    .map((o) => `<li>${esc(o.names.join(" · "))}</li>`).join("") || "<li>No named objects found</li>";
+    .map((o) => `<li>${esc(o.names.join(" · "))}${o.constellation ? ` <span class="const">in ${esc(o.constellation)}</span>` : ""}</li>`).join("") || "<li>No named objects found</li>";
 }
 
 $("show-catalog").addEventListener("change", () => result && render());

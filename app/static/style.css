@@ -48,3 +48,4 @@ h3 { color: var(--text); }
 #objects li::marker { color: var(--accent); }
 footer { text-align: center; padding: 2rem; font-size: .85rem; color: var(--muted); }
 footer a { color: var(--accent); }
+.const { color: var(--muted); font-size: .85em; }

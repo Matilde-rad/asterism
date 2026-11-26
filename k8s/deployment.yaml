@@ -21,13 +21,14 @@ spec:
           env:
             - name: ASTROMETRY_API_KEY
               valueFrom:
-                secretKeyRef: {name: asterism-secrets, key: ASTROMETRY_API_KEY}
+                secretKeyRef: {name: asterism-secrets, key: ASTROMETRY_API_KEY, optional: true}
           readinessProbe:
             httpGet: {path: /healthz, port: 8000}
+            initialDelaySeconds: 5
             periodSeconds: 10
           livenessProbe:
             httpGet: {path: /healthz, port: 8000}
             periodSeconds: 30
           resources:
-            requests: {cpu: 50m, memory: 128Mi}
-            limits: {cpu: 500m, memory: 512Mi}
+            requests: {cpu: 100m, memory: 384Mi}
+            limits: {cpu: "1", memory: 1536Mi}

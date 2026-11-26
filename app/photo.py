@@ -6,13 +6,17 @@ import math
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from PIL import Image
+from PIL import Image, ImageOps
 
 EXIF_IFD = 0x8769
 GPS_IFD = 0x8825
 DATETIME_ORIGINAL = 36867
 OFFSET_TIME_ORIGINAL = 36881
 FOCAL_35MM = 41989
+FOCAL_LENGTH = 37386
+FOCAL_PLANE_X_RES = 41486
+FOCAL_PLANE_RES_UNIT = 41488   # 2 = inch, 3 = cm
+EXIF_IMAGE_WIDTH = 40962
 
 
 def _to_float(v) -> float:
@@ -50,6 +54,23 @@ def field_width_deg(focal_35mm: Optional[float]) -> Optional[float]:
     return math.degrees(2 * math.atan(36 / (2 * focal_35mm)))
 
 
+def field_width_from_sensor(focal_mm, x_res, unit, pixel_width) -> Optional[float]:
+    """Canon & most DSLRs skip the 35 mm-equivalent tag, but they record how many pixels
+    fit in an inch/cm of sensor. That gives the real sensor width, and with the focal
+    length, the field of view: 2 * atan(sensor_width / (2 * focal))."""
+    try:
+        focal, x_res = _to_float(focal_mm), _to_float(x_res)
+    except (TypeError, ZeroDivisionError):
+        return None
+    if not focal or not x_res or not pixel_width:
+        return None
+    mm_per_unit = {2: 25.4, 3: 10.0, 4: 1.0}.get(int(unit or 2), 25.4)
+    sensor_mm = pixel_width / x_res * mm_per_unit
+    if not 4 < sensor_mm < 60:  # sanity check: phone to medium format
+        return None
+    return math.degrees(2 * math.atan(sensor_mm / (2 * focal)))
+
+
 def read_photo_meta(image: bytes, fallback_offset_hours: float = 0.0) -> dict:
     img = Image.open(io.BytesIO(image))
     meta = {"width": img.width, "height": img.height, "taken_at": None,
@@ -60,7 +81,9 @@ def read_photo_meta(image: bytes, fallback_offset_hours: float = 0.0) -> dict:
     sub = exif.get_ifd(EXIF_IFD)
     meta["taken_at"] = parse_taken_at(sub.get(DATETIME_ORIGINAL), sub.get(OFFSET_TIME_ORIGINAL),
                                       fallback_offset_hours)
-    meta["field_width_deg"] = field_width_deg(sub.get(FOCAL_35MM))
+    meta["field_width_deg"] = field_width_deg(sub.get(FOCAL_35MM)) or field_width_from_sensor(
+        sub.get(FOCAL_LENGTH), sub.get(FOCAL_PLANE_X_RES), sub.get(FOCAL_PLANE_RES_UNIT),
+        sub.get(EXIF_IMAGE_WIDTH) or img.width)
     gps = exif.get_ifd(GPS_IFD)
     if gps.get(2) and gps.get(4):
         meta["lat"] = dms_to_deg(gps[2], gps.get(1, "N"))
@@ -74,3 +97,19 @@ def scale_hints(field_deg: Optional[float]) -> dict:
         return {}
     return {"scale_units": "degwidth", "scale_type": "ul",
             "scale_lower": round(field_deg * 0.7, 2), "scale_upper": round(field_deg * 1.3, 2)}
+
+
+def prepare_upload(image: bytes, max_side: int = 2000) -> tuple[bytes, float, int, int]:
+    """Rotate upright (like the browser shows it) and shrink big photos so uploads are fast.
+
+    Returns (jpeg_bytes, factor, width, height) where factor converts solver pixel
+    coordinates back to the full-size upright photo.
+    """
+    img = ImageOps.exif_transpose(Image.open(io.BytesIO(image))).convert("RGB")
+    width, height = img.size
+    factor = max(width, height) / max_side if max(width, height) > max_side else 1.0
+    if factor > 1:
+        img = img.resize((round(width / factor), round(height / factor)), Image.LANCZOS)
+    out = io.BytesIO()
+    img.save(out, "JPEG", quality=92)
+    return out.getvalue(), factor, width, height

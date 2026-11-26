@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from fastapi.testclient import TestClient
 from PIL import Image
 
-from app import main, photo, sky
+from app import main, photo, sky, solver
 from app.nova import NovaClient
 
 
@@ -78,6 +78,8 @@ class FakeNova(NovaClient):
 
 def test_solve_flow(monkeypatch):
     monkeypatch.setattr(main, "make_client", lambda: FakeNova())
+    monkeypatch.setattr(solver, "get_local_solver", lambda: None)  # force the astrometry.net path
+    monkeypatch.setenv("ASTROMETRY_API_KEY", "test")
     client = TestClient(main.app)
     r = client.post("/api/solve", files={"file": ("sky.jpg", jpeg_bytes(), "image/jpeg")},
                     data={"lat": "39.42", "lon": "-9.22"})
@@ -95,8 +97,9 @@ def test_solve_flow(monkeypatch):
     assert res["facing"] is None  # no timestamp in this photo
 
 
-def test_missing_key_gives_clear_error(monkeypatch):
+def test_no_match_and_no_key_gives_clear_error(monkeypatch):
     monkeypatch.delenv("ASTROMETRY_API_KEY", raising=False)
+    monkeypatch.setattr(solver, "get_local_solver", lambda: None)
     client = TestClient(main.app)
     job_id = client.post("/api/solve", files={"file": ("s.jpg", jpeg_bytes(), "image/jpeg")}).json()["id"]
     for _ in range(50):
@@ -109,3 +112,32 @@ def test_missing_key_gives_clear_error(monkeypatch):
 
 def test_homepage_served():
     assert "Asterism" in TestClient(main.app).get("/").text
+
+
+def test_prepare_upload_shrinks_and_reports_factor():
+    data, factor, w, h = photo.prepare_upload(jpeg_bytes(4000, 3000), max_side=2000)
+    assert (w, h) == (4000, 3000) and factor == 2.0
+    assert Image.open(io.BytesIO(data)).size == (2000, 1500)
+
+
+def test_coordinates_scaled_back(monkeypatch):
+    monkeypatch.setattr(main, "make_client", lambda: FakeNova())
+    monkeypatch.setattr(solver, "get_local_solver", lambda: None)  # force the astrometry.net path
+    monkeypatch.setenv("ASTROMETRY_API_KEY", "test")
+    client = TestClient(main.app)
+    job_id = client.post("/api/solve", files={"file": ("big.jpg", jpeg_bytes(4000, 3000), "image/jpeg")}).json()["id"]
+    for _ in range(100):
+        job = client.get(f"/api/solve/{job_id}").json()
+        if job["status"] in ("done", "failed"):
+            break
+        time.sleep(0.05)
+    assert job["status"] == "done", job
+    assert job["result"]["objects"][0]["x"] == 20  # FakeNova says 10 on the half-size upload
+    assert job["result"]["image"] == {"width": 4000, "height": 3000}
+
+
+def test_canon_style_field_of_view():
+    # Canon APS-C (22.3 mm wide, 6000 px) with an 18 mm lens: no 35 mm tag, only focal-plane resolution.
+    x_res = 6000 / (22.3 / 25.4)  # pixels per inch of sensor
+    fov = photo.field_width_from_sensor(18, x_res, 2, 6000)
+    assert 63 < fov < 65

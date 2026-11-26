@@ -10,6 +10,8 @@ import time
 from typing import Callable, Optional
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 
 class NovaError(RuntimeError):
@@ -23,9 +25,20 @@ class NovaClient:
             raise NovaError("Missing ASTROMETRY_API_KEY (see .env.example)")
         self.api_key = api_key
         self.base = base_url.rstrip("/")
-        self.http = http or requests.Session()
+        self.http = http or self._session_with_retries()
         self.poll_seconds = poll_seconds
         self.session_key: Optional[str] = None
+
+    @staticmethod
+    def _session_with_retries() -> requests.Session:
+        # astrometry.net is a free, busy service: connections sometimes drop. Retry a few times.
+        retry = Retry(total=4, connect=4, read=4, backoff_factor=2,
+                      status_forcelist=[429, 500, 502, 503, 504], allowed_methods=None,
+                      raise_on_status=False)
+        s = requests.Session()
+        s.mount("https://", HTTPAdapter(max_retries=retry))
+        s.mount("http://", HTTPAdapter(max_retries=retry))
+        return s
 
     # --- low level -------------------------------------------------------
     def _post(self, path: str, payload: dict, files: Optional[dict] = None) -> dict:

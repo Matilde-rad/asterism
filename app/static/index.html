@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Asterism</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
   <header>
@@ -32,14 +32,14 @@
 
     <section class="card hidden" id="result-card">
       <div class="canvas-wrap"><canvas id="sky"></canvas></div>
-      <label class="toggle"><input type="checkbox" id="show-catalog"> Show catalogue-only stars (HD / Tycho numbers)</label>
+      <label class="toggle"><input type="checkbox" id="show-catalog"> Show unnamed stars (catalogue numbers)</label>
       <div class="facts" id="facts"></div>
       <h3>In this photo</h3>
       <ul id="objects"></ul>
     </section>
   </main>
 
-  <footer>Plate solving by <a href="https://nova.astrometry.net" target="_blank">astrometry.net</a></footer>
-  <script src="app.js"></script>
+  <footer>Star matching by ESA's <a href="https://github.com/esa/tetra3" target="_blank">tetra3</a> · backup: <a href="https://nova.astrometry.net" target="_blank">astrometry.net</a></footer>
+  <script src="app.js?v=4"></script>
 </body>
 </html>
