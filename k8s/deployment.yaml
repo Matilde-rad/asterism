@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: asterism
+  namespace: asterism
+  labels: {app: asterism}
+spec:
+  replicas: 1            # jobs live in memory, so keep a single pod for now
+  selector:
+    matchLabels: {app: asterism}
+  template:
+    metadata:
+      labels: {app: asterism}
+    spec:
+      containers:
+        - name: asterism
+          image: ghcr.io/matilde-rad/asterism:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          env:
+            - name: ASTROMETRY_API_KEY
+              valueFrom:
+                secretKeyRef: {name: asterism-secrets, key: ASTROMETRY_API_KEY}
+          readinessProbe:
+            httpGet: {path: /healthz, port: 8000}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /healthz, port: 8000}
+            periodSeconds: 30
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {cpu: 500m, memory: 512Mi}

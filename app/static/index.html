@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Asterism</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>✦ Asterism</h1>
+    <p class="tagline">Upload a night-sky photo. Get every star named, however you held the camera.</p>
+  </header>
+
+  <main>
+    <section class="card" id="upload-card">
+      <label class="drop" id="drop">
+        <input type="file" id="file" accept="image/*" hidden>
+        <span id="drop-text">Tap to choose a sky photo<br><small>JPEG straight from the camera keeps time & location</small></span>
+      </label>
+      <details>
+        <summary>Photo has no location / time zone?</summary>
+        <div class="row">
+          <label>Latitude <input type="number" step="any" id="lat" placeholder="39.42"></label>
+          <label>Longitude <input type="number" step="any" id="lon" placeholder="-9.22"></label>
+          <label>UTC offset (h) <input type="number" step="0.5" id="offset" value="0"></label>
+        </div>
+      </details>
+      <button id="go" disabled>Identify stars</button>
+      <p id="status" class="status"></p>
+    </section>
+
+    <section class="card hidden" id="result-card">
+      <div class="canvas-wrap"><canvas id="sky"></canvas></div>
+      <label class="toggle"><input type="checkbox" id="show-catalog"> Show catalogue-only stars (HD / Tycho numbers)</label>
+      <div class="facts" id="facts"></div>
+      <h3>In this photo</h3>
+      <ul id="objects"></ul>
+    </section>
+  </main>
+
+  <footer>Plate solving by <a href="https://nova.astrometry.net" target="_blank">astrometry.net</a></footer>
+  <script src="app.js"></script>
+</body>
+</html>
